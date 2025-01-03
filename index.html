@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>法律法规数据获取</title>
+    <style>
+        body {
+            margin: 10px;
+            font-family: Arial, sans-serif;
+        }
+        h1 {
+            text-align: center;
+            margin: 0;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        .controls {
+            padding: 20px;
+            display: flex;
+            flex-direction: row;
+            gap: 10px;
+            align-items: baseline;
+            background-color: #f8f8f8;
+            justify-content: center;
+        }
+        .page-selector {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-right: 40px;
+        }
+        .buttons {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        button {
+            padding: 10px 20px;
+            margin-right: 10px;
+        }
+        #status {
+            margin: 10px 0;
+            color: #666;
+        }
+        .progress-container {
+            margin: 20px 0;
+            width: 100%;
+            background-color: #f0f0f0;
+            border-radius: 4px;
+            padding: 10px;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #f0f0f0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background-color: #4CAF50;
+            width: 0;
+            transition: width 0.3s ease;
+        }
+        .progress-text {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #666;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+            font-size: 12px;
+        }
+        th {
+            background-color: #f4f4f4;
+        }
+        #startBtn:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        input[type="number"] {
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .buttons button {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #fff;
+            transition: background-color 0.3s;
+        }
+        .buttons button:hover {
+            background-color: #f0f0f0;
+        }
+        .buttons button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .data-source-container {
+            margin: 10px 0;
+            border: 1px solid #ddd;
+        }
+        
+        .data-source-tabs {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .tab-button {
+            flex: 1;
+            padding: 8px 16px;
+            border: 0px solid #ddd;
+            border-radius: 0px;
+            background-color: #fff;
+            cursor: pointer;
+            margin-right: 0px;
+            transition: all 0.3s;
+        }
+        
+        .tab-button.active {
+            background-color: #4CAF50;
+            color: white;
+            border-color: #4CAF50;
+        }
+        
+        .tab-button:hover:not(.active) {
+            background-color: #f0f0f0;
+        }
+        
+        .data-table {
+            width: 100%;
+        }
+        
+        #compareBtn {
+            background-color: #2196F3;
+            color: white;
+            border-color: #2196F3;
+        }
+        
+        #compareBtn:hover:not(:disabled) {
+            background-color: #1976D2;
+        }
+        
+        #compareBtn:disabled {
+            background-color: #90CAF9;
+            border-color: #90CAF9;
+            cursor: not-allowed;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border-radius: 8px;
+            width: 80%;
+            max-width: 600px;
+            position: relative;
+        }
+
+        .progress-container {
+            width: 96%;
+            padding: 10px;
+        }
+
+        .progress-container h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #f0f0f0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 15px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background-color: #4CAF50;
+            width: 0;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .download-group {
+            position: relative;
+            display: inline-block;
+        }
+
+        .download-options {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            z-index: 1000;
+            min-width: 160px;
+        }
+
+        .download-options button {
+            display: block;
+            width: 100%;
+            padding: 8px 16px;
+            border: none;
+            background: none;
+            text-align: left;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .download-options button:hover {
+            background-color: #f0f0f0;
+        }
+
+        .download-options.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <h1>法律法规数据获取</h1>
+    <div class="controls">
+        <div class="page-selector">
+            <label>页数范围：</label>
+            <input type="number" id="startPage" min="1" value="1" style="width: 60px;">
+            <span>至</span>
+            <input type="number" id="endPage" min="1" value="10" style="width: 60px;">
+            <label>
+                <input type="checkbox" id="getAllPages"> 获取全部
+            </label>
+        </div>
+        <div class="buttons">
+            <button id="startBtn" onclick="startFetch()">开始获取数据</button>
+            <div class="download-group">
+                <button id="downloadBtn" onclick="showDownloadOptions()" disabled>下载数据</button>
+                <div id="downloadOptions" class="download-options">
+                    <button onclick="downloadData('fetched')">下载获取的数据</button>
+                    <button onclick="downloadData('compared')">下载对比结果</button>
+                </div>
+            </div>
+            <input type="file" id="fileInput" accept=".json" style="display: none" onchange="handleFileUpload(event)">
+            <button onclick="document.getElementById('fileInput').click()">上传JSON</button>
+            <button onclick="compareData()" id="compareBtn" disabled>开始对比</button>
+        </div>
+    </div>
+    
+    <div id="progressModal" class="modal">
+        <div class="modal-content">
+            <div class="progress-container">
+                <h3>处理中...</h3>
+                <div class="progress-bar">
+                    <div id="progressFill" class="progress-fill"></div>
+                </div>
+                <div id="progressText" class="progress-text"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="data-source-container">
+        <div class="data-source-tabs">
+            <button class="tab-button active" onclick="switchDataSource('fetched')">获取数据</button>
+            <button class="tab-button" onclick="switchDataSource('uploaded')">上传数据</button>
+            <button class="tab-button" onclick="switchDataSource('compared')">对比结果</button>
+        </div>
+    </div>
+    
+    <div id="result" style="height: calc(100vh - 220px);overflow: auto;">
+        <div id="fetchedData" class="data-table"></div>
+        <div id="uploadedData" class="data-table" style="display: none;"></div>
+        <div id="comparedData" class="data-table" style="display: none;"></div>
+    </div>
+
+    <script src="law_fetcher.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            let globalData = [];
+            let isRunning = false;
+            let fetchedData = [];
+            let uploadedData = [];
+            let currentSource = 'fetched';
+            let comparedData = [];
+            
+            // 修改页数选择联动功能
+            document.getElementById('getAllPages').addEventListener('change', function(e) {
+                const startPage = document.getElementById('startPage');
+                const endPage = document.getElementById('endPage');
+                startPage.disabled = e.target.checked;
+                endPage.disabled = e.target.checked;
+            });
+
+            // 添加页数范围验证
+            document.getElementById('endPage').addEventListener('change', function() {
+                const startPage = parseInt(document.getElementById('startPage').value);
+                const endPage = parseInt(this.value);
+                if (endPage < startPage) {
+                    alert('结束页数不能小于起始页数');
+                    this.value = startPage;
+                }
+            });
+
+            document.getElementById('startPage').addEventListener('change', function() {
+                const startPage = parseInt(this.value);
+                const endPage = parseInt(document.getElementById('endPage').value);
+                if (startPage > endPage) {
+                    document.getElementById('endPage').value = startPage;
+                }
+                if (startPage < 1) {
+                    this.value = 1;
+                }
+            });
+
+            // 将所有函数定义为 window 的属性，使其可以从 HTML 中调用
+            window.updateProgress = function(message, percentage = null) {
+                const modal = document.getElementById('progressModal');
+                const progressText = document.getElementById('progressText');
+                const progressFill = document.getElementById('progressFill');
+                
+                // 确保模态框显示
+                modal.style.display = 'block';
+                
+                // 更新消息
+                const timestamp = new Date().toLocaleTimeString();
+                progressText.innerHTML = `[${timestamp}] ${message}<br>` + progressText.innerHTML;
+                
+                // 更新进度条
+                if (percentage !== null) {
+                    progressFill.style.width = `${percentage}%`;
+                }
+            };
+
+            window.resetProgress = function() {
+                const modal = document.getElementById('progressModal');
+                const progressFill = document.getElementById('progressFill');
+                const progressText = document.getElementById('progressText');
+                
+                progressFill.style.width = '0';
+                progressText.innerHTML = '';
+                modal.style.display = 'none';
+            };
+
+            window.startFetch = async function() {
+                if (isRunning) return;
+                
+                const startBtn = document.getElementById('startBtn');
+                const downloadBtn = document.getElementById('downloadBtn');
+                const startPage = document.getElementById('startPage');
+                const endPage = document.getElementById('endPage');
+                const getAllPages = document.getElementById('getAllPages');
+                
+                startBtn.disabled = true;
+                downloadBtn.disabled = true;
+                isRunning = true;
+                
+                globalData = [];
+                resetProgress();
+                document.getElementById('fetchedData').innerHTML = '';
+                
+                const fetcher = new LawFetcher();
+                try {
+                    updateProgress('开始获取数据...', 0);
+                    
+                    const pageRange = getAllPages.checked ? null : {
+                        start: parseInt(startPage.value),
+                        end: parseInt(endPage.value)
+                    };
+                    
+                    fetchedData = await fetcher.fetchAllData((page, total) => {
+                        const percentage = pageRange 
+                            ? Math.min(((page - pageRange.start + 1) / (pageRange.end - pageRange.start + 1)) * 100, 100)
+                            : Math.min((page / 100) * 100, 100);
+                        updateProgress(`正在获取第${page}页数据...`, percentage);
+                    }, pageRange);
+                    
+                    console.log(`获取到 ${fetchedData.length} 条数据`);
+                    
+                    if (!fetchedData || fetchedData.length === 0) {
+                        throw new Error('未获取到数据');
+                    }
+                    
+                    globalData = fetchedData;
+                    
+                    if (Array.isArray(fetchedData) && fetchedData.length > 0) {
+                        fetcher.displayData(fetchedData, 'fetchedData');
+                        updateProgress(`获取完成，共 ${fetchedData.length} 条数据`, 100);
+                        downloadBtn.disabled = false;
+                        document.getElementById('compareBtn').disabled = !uploadedData.length;
+                        switchDataSource('fetched');
+                        
+                        setTimeout(() => {
+                            resetProgress();
+                        }, 1500);
+                    } else {
+                        throw new Error('获取的数据格式不正确');
+                    }
+                    
+                } catch (error) {
+                    console.error('获取数据时出错:', error);
+                    updateProgress('获取数据时出错：' + error.message);
+                    document.getElementById('fetchedData').innerHTML = 
+                        `<div style="color: red; padding: 20px;">获取数据失败: ${error.message}</div>`;
+                    setTimeout(() => {
+                        resetProgress();
+                    }, 3000);
+                } finally {
+                    startBtn.disabled = false;
+                    isRunning = false;
+                }
+            };
+
+            window.downloadData = function(type) {
+                let dataToDownload;
+                let filename;
+                
+                switch(type) {
+                    case 'fetched':
+                        if (fetchedData.length === 0) {
+                            alert('没有可下载的获取数据！');
+                            return;
+                        }
+                        dataToDownload = fetchedData;
+                        filename = 'fetched_laws_data.json';
+                        break;
+                    case 'compared':
+                        if (comparedData.length === 0) {
+                            alert('没有可下载的对比结果数据！');
+                            return;
+                        }
+                        dataToDownload = comparedData;
+                        filename = 'compared_laws_data.json';
+                        break;
+                    default:
+                        alert('请选择要下载的数据类型！');
+                        return;
+                }
+
+                const fetcher = new LawFetcher();
+                fetcher.saveToJson(dataToDownload, filename);
+                updateProgress(`已下载${type === 'fetched' ? '获取的数据' : '对比结果数据'}`);
+                
+                // 隐藏下载选项
+                document.getElementById('downloadOptions').classList.remove('show');
+                
+                // 自动关闭进度提示
+                setTimeout(() => {
+                    resetProgress();
+                }, 1500);
+            };
+
+            window.handleFileUpload = async function(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                
+                try {
+                    updateProgress('正在读取文件...', 0);
+                    const text = await file.text();
+                    updateProgress('正在解析JSON...', 50);
+                    const jsonData = JSON.parse(text);
+                    
+                    uploadedData = jsonData;
+                    globalData = uploadedData;
+                    
+                    const fetcher = new LawFetcher();
+                    fetcher.displayData(uploadedData, 'uploadedData');
+                    
+                    switchDataSource('uploaded');
+                    
+                    document.getElementById('compareBtn').disabled = !fetchedData.length;
+                    
+                    updateProgress(`成功加载JSON文件，共 ${jsonData.length} 条数据`, 100);
+                    
+                    setTimeout(() => {
+                        resetProgress();
+                    }, 1500);
+                    
+                } catch (error) {
+                    updateProgress('解析JSON文件时出错：' + error.message);
+                    console.error('JSON解析错误:', error);
+                    setTimeout(() => {
+                        resetProgress();
+                    }, 3000);
+                }
+                
+                event.target.value = '';
+            };
+
+            window.switchDataSource = function(source) {
+                document.querySelectorAll('.tab-button').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                document.querySelector(`.tab-button[onclick*="${source}"]`).classList.add('active');
+
+                document.getElementById('fetchedData').style.display = 'none';
+                document.getElementById('uploadedData').style.display = 'none';
+                document.getElementById('comparedData').style.display = 'none';
+                
+                document.getElementById(`${source}Data`).style.display = 'block';
+                
+                currentSource = source;
+                switch(source) {
+                    case 'fetched':
+                        globalData = fetchedData;
+                        break;
+                    case 'uploaded':
+                        globalData = uploadedData;
+                        break;
+                    case 'compared':
+                        globalData = comparedData;
+                        break;
+                }
+                
+                document.getElementById('downloadBtn').disabled = globalData.length === 0;
+                document.getElementById('compareBtn').disabled = !fetchedData.length || !uploadedData.length;
+            };
+
+            window.compareData = function() {
+                if (!fetchedData.length || !uploadedData.length) {
+                    alert('请确保已获取数据且已上传对比文件！');
+                    return;
+                }
+
+                updateProgress('开始对比数据...', 0);
+
+                const missingRecords = fetchedData.filter(fetchedItem => {
+                    return !uploadedData.some(uploadedItem => 
+                        fetchedItem.title === uploadedItem.title && 
+                        fetchedItem.expiry === uploadedItem.expiry
+                    );
+                });
+
+                comparedData = missingRecords;
+                
+                const fetcher = new LawFetcher();
+                fetcher.displayData(comparedData, 'comparedData');
+                
+                switchDataSource('compared');
+                
+                updateProgress(`对比完成，发现 ${comparedData.length} 条新增数据`, 100);
+                
+                setTimeout(() => {
+                    resetProgress();
+                }, 1500);
+            };
+
+            // 点击模态框背景时关闭
+            window.onclick = function(event) {
+                const modal = document.getElementById('progressModal');
+                if (event.target === modal && !isRunning) {
+                    resetProgress();
+                }
+            };
+
+            // 显示下载选项
+            window.showDownloadOptions = function() {
+                const options = document.getElementById('downloadOptions');
+                options.classList.toggle('show');
+            };
+
+            // 点击其他地方时关闭下载选项
+            document.addEventListener('click', function(event) {
+                const downloadGroup = document.querySelector('.download-group');
+                const downloadOptions = document.getElementById('downloadOptions');
+                
+                if (!downloadGroup.contains(event.target)) {
+                    downloadOptions.classList.remove('show');
+                }
+            });
+        });
+    </script>
+</body>
+</html> 
