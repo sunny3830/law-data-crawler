@@ -407,11 +407,17 @@
                         end: parseInt(endPage.value)
                     };
                     
-                    fetchedData = await fetcher.fetchAllData((page, total) => {
-                        const percentage = pageRange 
-                            ? Math.min(((page - pageRange.start + 1) / (pageRange.end - pageRange.start + 1)) * 100, 100)
-                            : Math.min((page / 100) * 100, 100);
-                        updateProgress(`正在获取第${page}页数据...`, percentage);
+                    fetchedData = await fetcher.fetchAllData((page, total, percentage, message) => {
+                        if (message) {
+                            // 处理特殊消息
+                            updateProgress(message, percentage);
+                        } else if (page && total) {
+                            // 处理常规进度更新
+                            const actualPercentage = percentage 
+                                ? Math.min(percentage, 100)
+                                : Math.min((page / total) * 100, 100);
+                            updateProgress(`正在获取第${page}页数据...`, actualPercentage);
+                        }
                     }, pageRange);
                     
                     console.log(`获取到 ${fetchedData.length} 条数据`);
@@ -454,6 +460,12 @@
                 let dataToDownload;
                 let filename;
                 
+                // 获取当前日期时间
+                const now = new Date();
+                const dateStr = now.toLocaleDateString().replace(/\//g, '');
+                const timeStr = now.toLocaleTimeString().replace(/:/g, '').replace(/\s/g, '');
+                const timestamp = `${dateStr}_${timeStr}`;
+                
                 switch(type) {
                     case 'fetched':
                         if (fetchedData.length === 0) {
@@ -461,7 +473,7 @@
                             return;
                         }
                         dataToDownload = fetchedData;
-                        filename = 'fetched_laws_data.json';
+                        filename = `laws_data_${timestamp}.json`;
                         break;
                     case 'compared':
                         if (comparedData.length === 0) {
@@ -469,7 +481,7 @@
                             return;
                         }
                         dataToDownload = comparedData;
-                        filename = 'compared_laws_data.json';
+                        filename = `laws_compared_${timestamp}.json`;
                         break;
                     default:
                         alert('请选择要下载的数据类型！');
@@ -478,7 +490,7 @@
 
                 const fetcher = new LawFetcher();
                 fetcher.saveToJson(dataToDownload, filename);
-                updateProgress(`已下载${type === 'fetched' ? '获取的数据' : '对比结果数据'}`);
+                updateProgress(`已下载${type === 'fetched' ? '获取的数据' : '对比结果数据'}: ${filename}`);
                 
                 // 隐藏下载选项
                 document.getElementById('downloadOptions').classList.remove('show');

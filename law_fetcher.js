@@ -1,9 +1,11 @@
 class LawFetcher {
     constructor() {
         this.baseUrl = 'https://flk.npc.gov.cn/api/';
+        this.failedPages = new Map(); // 存储加载失败的页码及重试次数
+        this.maxRetries = 3; // 最大重试次数
     }
 
-    async fetchPageData(page = 1) {
+    async fetchPageData(page = 1, isRetry = false) {
         const params = new URLSearchParams({
             page: page,
             type: '',
@@ -21,7 +23,17 @@ class LawFetcher {
 
         try {
             console.log(`Requesting page ${page}...`);
-            const response = await fetch(`${this.baseUrl}?${params}`, {
+            
+            // 根据是否是重试阶段设置不同的超时时间
+            const timeout = isRetry ? 10000 : 5000;  // 重试时使用 10 秒超时
+            
+            // 创建一个超时 Promise
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('请求超时')), timeout);
+            });
+
+            // 创建实际的请求 Promise
+            const fetchPromise = fetch(`${this.baseUrl}?${params}`, {
                 method: 'GET',
                 headers: {
                     'Accept': 'application/json',
@@ -31,6 +43,9 @@ class LawFetcher {
                 },
                 mode: 'cors'
             });
+
+            // 使用 Promise.race 竞争，谁先完成就用谁的结果
+            const response = await Promise.race([fetchPromise, timeoutPromise]);
 
             if (!response.ok) {
                 const errorText = await response.text();
@@ -48,8 +63,9 @@ class LawFetcher {
             return data.result.data;
         } catch (error) {
             console.error(`获取第${page}页数据时出错:`, error);
-            // 添加更多错误信息
-            if (error instanceof TypeError && error.message === 'Failed to fetch') {
+            if (error.message === '请求超时') {
+                console.error(`第${page}页请求超时 (${isRetry ? '重试阶段' : '首次获取'})`);
+            } else if (error instanceof TypeError && error.message === 'Failed to fetch') {
                 console.error('网络连接失败，请检查服务器是否正在运行');
             }
             throw error;
@@ -65,21 +81,10 @@ class LawFetcher {
         // 计算总页数
         const totalPages = endPage ? (endPage - page + 1) : 100;
         
+        // 第一轮加载
         while (hasMoreData) {
-            // 如果设置了结束页数且当前页超过结束页数，则停止
             if (endPage !== null && page > endPage) {
                 break;
-            }
-
-            // 跳过第20页
-            if (page === 20) {
-                if (progressCallback) {
-                    const currentProgress = ((page - (pageRange ? pageRange.start : 1)) / totalPages) * 100;
-                    progressCallback(page, totalPages, currentProgress);
-                }
-                console.log('跳过第20页数据...');
-                page++;
-                continue;
             }
 
             if (progressCallback) {
@@ -100,14 +105,55 @@ class LawFetcher {
                 allData.push(...pageData);
                 console.log(`当前已获取 ${allData.length} 条数据`);
                 
-                // 添加延迟，避免请求过快
                 await new Promise(resolve => setTimeout(resolve, 1000));
                 page++;
             } catch (error) {
                 console.error(`获取第${page}页数据时出错:`, error);
-                // 如果出错，尝试继续获取下一页
+                this.failedPages.set(page, 1); // 记录失败页码，初始重试次数为1
+                progressCallback(page, totalPages, null, `第${page}页加载失败，将在完成后重试`);
                 page++;
                 continue;
+            }
+        }
+
+        // 处理失败的页面
+        if (this.failedPages.size > 0) {
+            progressCallback(null, null, null, '开始重试加载失败的页面...');
+            
+            while (this.failedPages.size > 0 && [...this.failedPages.values()].some(retries => retries < this.maxRetries)) {
+                const failedEntries = [...this.failedPages.entries()];
+                
+                for (const [failedPage, retries] of failedEntries) {
+                    if (retries >= this.maxRetries) continue;
+                    
+                    try {
+                        progressCallback(null, null, null, `正在重试第${failedPage}页（第${retries}次重试）...`);
+                        const pageData = await this.fetchPageData(failedPage, true);
+                        
+                        if (pageData.length > 0) {
+                            allData.push(...pageData);
+                            this.failedPages.delete(failedPage);
+                            progressCallback(null, null, null, `第${failedPage}页重试成功`);
+                        }
+                    } catch (error) {
+                        this.failedPages.set(failedPage, retries + 1);
+                        progressCallback(null, null, null, `第${failedPage}页第${retries}次重试失败`);
+                    }
+                    
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+            }
+
+            // 最终失败统计
+            const finalFailures = [...this.failedPages.entries()]
+                .filter(([_, retries]) => retries >= this.maxRetries)
+                .map(([page]) => page);
+                
+            if (finalFailures.length > 0) {
+                progressCallback(null, null, null, 
+                    `完成加载，但以下页面始终无法加载：${finalFailures.join(', ')}`);
+            } else {
+                progressCallback(null, null, null, '所有失败页面重试成功');
             }
         }
 
